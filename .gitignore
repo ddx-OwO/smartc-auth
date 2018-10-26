@@ -1,0 +1,6 @@
+/vendor/
+/config/development/
+*.tmp
+*.lock
+*.sublime-project
+*.sublime-workspace
