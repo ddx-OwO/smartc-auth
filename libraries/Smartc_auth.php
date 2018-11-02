@@ -124,7 +124,7 @@ class Smartc_auth
 
 		unset($user);
 
-		if ($this->smartc_auth_model->set_user_status($identity, 1))
+		if ($this->set_user_status($identity, 1))
 		{
 			$this->set_message('account_activation_success');
 			return TRUE;
@@ -147,7 +147,7 @@ class Smartc_auth
 
 	public function deactivate($identity)
 	{
-		if ($this->smartc_auth_model->set_user_status($identity, 0))
+		if ($this->set_user_status($identity, 0))
 		{
 			$this->set_message('account_deactivation_success');
 			return TRUE;
@@ -170,7 +170,7 @@ class Smartc_auth
 
 	public function ban($identity)
 	{
-		if ($this->smartc_auth_model->set_user_status($identity, -1))
+		if ($this->set_user_status($identity, -1))
 		{
 			$this->set_message('account_ban_success');
 			return TRUE;
@@ -195,7 +195,7 @@ class Smartc_auth
 	{
 		$user = $this->select('user_status')->user($identity)->row();
 
-		if( ! is_null($user) && intval($user->status) === 1)
+		if( ! empty($user) && intval($user->user_status) === 1)
 		{
 			return TRUE;
 		}
@@ -234,11 +234,9 @@ class Smartc_auth
 	 * @param string $token_hash Token that has been hashed
 	 * @return bool
 	 */
-
-	protected function login_verify($identifier, $token)
+	public function login_verify($identifier, $token)
 	{
 		$recheck = $this->config->item('login_recheck', 'smartc_auth_config');
-		$token = empty($token) ? '' : $token;
 		$token_hash = hash('sha256', $token);
 
 		if ($this->session->has_userdata('token'))
@@ -255,16 +253,16 @@ class Smartc_auth
 			if ($recheck + $this->session->userdata('last_login') < time())
 			{
 				$this->session->set_userdata('last_login', time());
-				$this->update_last_login($identifier);
+				$this->update_last_login($token_identifier);
 			}
 
 			return (bool)$this->session->userdata('token');
 		}
 
-		// If we can't found the session we look the on cookie instead
-		$login_data = $this->select('identifier,token')->login_data($identifier)->row();
+		// If we can't found the session we look on the database
+		$login_data = $this->select('identifier,token,expiration_time')->login_data($identifier)->row();
 		
-		if (empty($login_data))
+		if (empty($login_data) && (time() > $login_data->expiration_time))
 		{
 			return FALSE;
 		}
@@ -487,7 +485,7 @@ class Smartc_auth
 	 * @param string|array 	$permissions 	Array of permissions to check
 	 * @param int 			$user_id 		
 	 * @param bool 			$check_all 
-	 * @return type
+	 * @return bool
 	 */
 
 	public function user_has_permission($permissions = array(), $user_id = NULL, $check_all = FALSE)

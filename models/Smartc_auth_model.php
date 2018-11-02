@@ -23,6 +23,16 @@
 defined('BASEPATH') or exit('No direct access script allowed');
 
 class Smartc_auth_model extends CI_Model {
+
+    /**
+     * Time constants
+     */
+    const MINUTE_IN_SECONDS = 60;
+    const HOUR_IN_SECONDS = 60 * MINUTE_IN_SECONDS;
+    const DAY_IN_SECONDS = 24 * HOUR_IN_SECONDS;
+    const WEEK_IN_SECONDS = 7 * DAY_IN_SECONDS;
+    const MONTH_IN_SECONDS = 30 * DAY_IN_SECONDS;
+    const YEAR_IN_SECONDS = 365 * DAY_IN_SECONDS;
     
     /**
      * Tables
@@ -507,6 +517,7 @@ class Smartc_auth_model extends CI_Model {
     {
         if($this->smartc_auth_model->is_user_exist($identity))
         {
+            // Check if the user listed in protected users
             foreach ($this->protected_users as $user) 
             {
                 if(strcmp($identity, strtolower($user)) === 0)
@@ -515,6 +526,7 @@ class Smartc_auth_model extends CI_Model {
                     return FALSE;
                 }
             }
+            
             if($this->smartc_auth_model->delete_user($identity))
             {
                 $this->set_message('account_delete_success');
@@ -813,7 +825,7 @@ class Smartc_auth_model extends CI_Model {
         // Generate activation code hash
         $this->activation_code = hash('sha256', $this->security->get_random_bytes(128));
 
-        $default_status = $this->config->item('user_default_status', 'smartc_auth_config');
+        $default_status = ($this->config->item('activation_method', 'smartc_auth_config') === FALSE) ? 1 : 0;
 
         // Handling the password length is truncated if longer than 72 characters
         // See: https://paragonie.com/blog/2015/04/secure-authentication-php-with-long-term-persistence
@@ -866,7 +878,7 @@ class Smartc_auth_model extends CI_Model {
             // Email activation only works when user default status is 0 (Nonactive)
             $activation_method = $this->config->item('activation_method', 'smartc_auth_config');
             
-            if ($activation_method === 'email' && $default_status === 0)
+            if ($activation_method === 'email')
             {
                 $email_message_data = array(
                     'identity' => $identity,
@@ -940,9 +952,9 @@ class Smartc_auth_model extends CI_Model {
             if (password_verify($hashed_password, $user_data->user_password) === TRUE)
             {
                 $time = time();
-                $token_identifier = bin2hex($this->security->get_random_bytes(16));
-                $token = bin2hex($this->security->get_random_bytes(128));
-                $token_hash = hash('sha256', $token);
+                $token_identifier = bin2hex($this->security->get_random_bytes(16)); // Stored in cookie
+                $token = bin2hex($this->security->get_random_bytes(128)); // Stored in cookie and session
+                $token_hash = hash('sha256', $token); // Stored in database
 
                 $browser = $this->agent->browser() . ':' . $this->agent->version();
                 $platform = $this->agent->platform();
@@ -956,7 +968,6 @@ class Smartc_auth_model extends CI_Model {
                     if($this->cookies['remember_expiration'] === 0)
                     {
                         // Set expire to 1 Day
-                        // DAY_IN_SECONDS constant defined on constant.php file
                         $expire = DAY_IN_SECONDS;
                     }
                 }
@@ -1012,8 +1023,7 @@ class Smartc_auth_model extends CI_Model {
     /**
      * Regenerate token cookie and save it to database
      * 
-     * @param int $login_id Login ID
-     * @param string $identity User Identity
+     * @param string $identifier
      * @return bool
      */
 
@@ -1085,7 +1095,7 @@ class Smartc_auth_model extends CI_Model {
     public function set_user_status($identity, $status)
     {
         $update = $this->where([$this->identity_column => $identity])
-                       ->set(['status' => $status])
+                       ->set(['user_status' => $status])
                        ->update($this->tables['users']);
         return $update;
     }

@@ -59,14 +59,14 @@ $config['identity_column'] = 'username';
 
 /*
  | -------------------------------------------------------------------------
- | User Default Status
+ | User Default Status (DEPRECATED)
  | -------------------------------------------------------------------------
  |
  | 1 = Active User
  | 0 = Nonactive User
  | -1 = Banned User
  */
-$config['user_default_status'] = 0;
+//$config['user_default_status'] = 0;
 
 /*
  | -------------------------------------------------------------------------
@@ -82,11 +82,10 @@ $config['user_default_group'] = 'user';
  | -------------------------------------------------------------------------
  | Activation Method
  | -------------------------------------------------------------------------
- | Email activation only works when user_default_status is 0
  |
  | manual = Only admin will activate new user
  | email  = New user will activated by email with verification link/code
- | none   = No activation (Auto active)
+ | FALSE   = No activation (Auto active)
  |
  */
 $config['activation_method'] = 'manual';
@@ -179,5 +178,3 @@ $config['email_templates'] = 'auth/email/';
 $config['email_activate'] = 'activate.php';
 
 $config['auth_language'] = 'indonesian';
-
-?>
