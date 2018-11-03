@@ -215,7 +215,6 @@ class Smartc_auth
 		$identity = get_cookie($this->cookies['identity']);
 		$token = get_cookie($this->cookies['token']);
 		$token_identifier = get_cookie($this->cookies['token_identifier']);
-		$token_hash = hash('sha256', $token);
 
 		if ( ! empty($identity) && ! empty($token_identifier))
 		{
@@ -223,7 +222,7 @@ class Smartc_auth
 		}
 		else
 		{
-			return FALSE;
+			return $this->login_remembered_user();
 		}
 	}
 
@@ -282,11 +281,11 @@ class Smartc_auth
 		$token = get_cookie($this->cookies['token']);
 		$token_identifier = get_cookie($this->cookies['token_identifier']);
 
-		if( ! empty($identity) && ! empty($token_identifier))
+		if ( ! empty($identity) && ! empty($token_identifier))
 		{
-			if($this->login_verify($token_identifier, $token_hash) === TRUE)
+			if ($this->login_verify($token_identifier, $token) === TRUE)
 			{
-				return $this->regenerate_token($login_id);
+				return $this->regenerate_token($token_identifier);
 			}
 			else
 			{
@@ -315,7 +314,7 @@ class Smartc_auth
 
 		if (get_cookie($this->cookies['token_identifier']))
 		{
-			$this->smartc_auth_model->deactivate_login(get_cookie($this->cookies['token_identifier']));
+			$this->deactivate_login(get_cookie($this->cookies['token_identifier']));
 			delete_cookie($this->cookies['token']);
 			delete_cookie($this->cookies['token_identifier']);
 		}
@@ -456,11 +455,16 @@ class Smartc_auth
 	 * @return bool
 	 */
 
-	public function in_group($check_groups = array(), $user_id = NULL, $check_all = FALSE)
+	public function in_group($check_groups, $user_id = NULL, $check_all = FALSE)
 	{
 		$user_id = (is_null($user_id)) ? $this->session->userdata('user_id') : $user_id;
 		$user_groups = $this->user_groups($user_id)->result();
 		$groups_array = array();
+
+		if ( ! is_array($check_groups))
+		{
+			$check_groups = array($check_groups);
+		}
 
 		foreach ($user_groups as $group)
 		{
@@ -488,16 +492,15 @@ class Smartc_auth
 	 * @return bool
 	 */
 
-	public function user_has_permission($permissions = array(), $user_id = NULL, $check_all = FALSE)
+	public function user_has_permission($permissions, $user_id = NULL, $check_all = FALSE)
 	{
-		$user_id || $user_id = $this->session->userdata('user_id');
+		$user_id = (is_null($user_id)) ? $this->session->userdata('user_id') : $user_id;
 
 		if ( ! is_array($permissions))
 		{
 			$permissions = array($permissions);
 		}
 
-		$check = array();
 		$user_groups = $this->user_groups($user_id)->result();
 		$groups_permissions = array();
 
